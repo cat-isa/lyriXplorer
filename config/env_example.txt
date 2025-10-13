@@ -1,0 +1,38 @@
+# Spotify API Configuration
+SPOTIFY_CLIENT_ID=your_spotify_client_id_here
+SPOTIFY_CLIENT_SECRET=your_spotify_client_secret_here
+SPOTIFY_REDIRECT_URI=http://localhost:3000/callback
+
+# Huggingface secrets
+HF_TOKEN=your_hf_token
+
+# App Configuration
+DEBUG=True
+HOST=0.0.0.0
+PORT=8000
+SYNC_ON_STARTUP=true
+
+# Vector Database Configuration
+CHROMA_PERSIST_DIRECTORY=./embeddings
+EMBEDDING_MODEL=paraphrase-multilingual-MiniLM-L12-v2
+EMBEDDING_BATCH_SIZE=16 
+
+# Storage
+DATA_DIR=/data
+
+# Search Configuration
+KEYWORD_INDEX_PERSIST_DIRECTORY=./keyword_index
+MAX_SEARCH_RESULTS=20
+HYBRID_SEARCH_WEIGHT=0.7 
+ENABLE_LEMMATIZATION=true
+ENABLE_FUZZY_MATCHING=true
+ENABLE_PHRASE_MATCHING=true
+
+# Lyrics Fetching Configuration
+AUTO_LYRICS_AFTER_SYNC=true
+LYRICS_MAX_CONCURRENCY=2
+LYRICS_RPS=1
+LYRICS_BATCH_SIZE=10
+LYRICS_MAX_PER_RUN=200
+LYRICS_MAX_ATTEMPTS=3
+LYRICS_COOLDOWN_HOURS=72
