@@ -31,14 +31,28 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# Add CORS middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# Add CORS middleware (configurable)
+cors_origins_env = os.getenv("CORS_ORIGINS", "*")
+cors_origins = [o.strip() for o in cors_origins_env.split(",") if o.strip()]
+allow_credentials = os.getenv("CORS_ALLOW_CREDENTIALS", "false").lower() == "true"
+
+if cors_origins == ["*"]:
+    # When using wildcard with credentials, browsers reject; use regex instead
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origin_regex=".*",
+        allow_credentials=allow_credentials,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+else:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=cors_origins,
+        allow_credentials=allow_credentials,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
 # Initialize components
 spotify_client = None
