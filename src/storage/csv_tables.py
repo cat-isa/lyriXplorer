@@ -3,6 +3,7 @@ from datetime import datetime
 import csv
 import pandas as pd
 import threading
+import time
 from typing import Dict, Any, List, Optional, Iterable, Tuple
 
 class _BaseCSV:
@@ -31,12 +32,30 @@ class _BaseCSV:
 
     def _write_all(self, rows: List[Dict[str, Any]]) -> None:
         tmp = self.path + '.tmp'
-        with self._lock, open(tmp, 'w', newline='', encoding='utf-8') as f:
-            writer = csv.DictWriter(f, fieldnames=self.FIELDNAMES)
-            writer.writeheader()
-            for row in rows:
-                writer.writerow({k: '' if v is None else str(v) for k, v in row.items() if k in self.FIELDNAMES})
-        os.replace(tmp, self.path)
+        with self._lock:
+            with open(tmp, 'w', newline='', encoding='utf-8') as f:
+                writer = csv.DictWriter(f, fieldnames=self.FIELDNAMES)
+                writer.writeheader()
+                for row in rows:
+                    writer.writerow({k: '' if v is None else str(v) for k, v in row.items() if k in self.FIELDNAMES})
+            # On Windows, another process/thread (e.g., AV or indexing) can momentarily lock the file.
+            # Retry replace a few times with exponential backoff.
+            attempts = 6
+            delay = 0.02
+            for i in range(attempts):
+                try:
+                    os.replace(tmp, self.path)
+                    break
+                except PermissionError:
+                    if i == attempts - 1:
+                        # Best effort cleanup: try to remove tmp
+                        try:
+                            os.remove(tmp)
+                        except Exception:
+                            pass
+                        raise
+                    time.sleep(delay)
+                    delay *= 2
 
     def _to_dataFrame(self) -> pd.DataFrame:
         return pd.DataFrame(self._read_all())
