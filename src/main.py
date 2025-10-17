@@ -123,7 +123,6 @@ async def startup_event():
         get_lyrics_client()
         get_embedding_manager()
         get_search_engine()
-        get_sync_service()
         get_lyrics_service()
         logger.info("All components initialized successfully")
     except Exception as e:
@@ -162,7 +161,9 @@ async def health_check():
                 "spotify_client": spotify_client is not None,
                 "lyrics_client": lyrics_client is not None,
                 "embedding_manager": embedding_manager is not None,
-                "search_engine": search_engine is not None
+                "search_engine": search_engine is not None,
+                "sync_service": sync_service is not None,
+                "lyrics_service": lyrics_service is not None
             }
         }
     except Exception as e:
@@ -323,5 +324,6 @@ if __name__ == "__main__":
         host=host,
         port=port,
         reload=debug,
+        reload_dirs=["src"],
         log_level="info"
     ) 

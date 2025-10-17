@@ -7,7 +7,7 @@ SPOTIFY_REDIRECT_URI=http://localhost:3000/callback
 HF_TOKEN=your_hf_token
 
 # App Configuration
-DEBUG=True
+DEBUG=false
 HOST=0.0.0.0
 PORT=8000
 SYNC_ON_STARTUP=true

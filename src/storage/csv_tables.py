@@ -182,7 +182,7 @@ class LyricsTable(_BaseCSV):
     def get_lyrics(self, song_id: str) -> str:
         for r in self._read_all():
             if r['song_id'] == song_id and (r.get('lyrics_text') or '').strip():
-                return r.get('lyrics_text', '')
+                return r
         return 'lyrics unavailable'
 
     def delete_ids(self, ids: Iterable[str]) -> int:

@@ -4,15 +4,10 @@ from typing import List
 from datetime import datetime
 from typing import Optional
 
-#from ..api.spotify_client import SpotifyClient
 from api.spotify_client import SpotifyClient
-#from ..api.lyrics_client import LyricsClient
 from api.lyrics_client import LyricsClient
-#from ..storage.csv_tables import PlaylistsTable, SongsTable, PlaylistTracksTable, LyricsTable
 from storage.csv_tables import PlaylistsTable, SongsTable, PlaylistTracksTable, LyricsTable
-#from .lyrics_fetch_service import LyricsFetchService
 from .lyrics_fetch_service import LyricsFetchService
-#from ..storage.state_store import StateStore
 from storage.state_store import StateStore
 from search.hybrid_search import HybridSearchEngine
 
@@ -151,7 +146,7 @@ class SyncService:
         try:
             auto = os.getenv('AUTO_LYRICS_AFTER_SYNC', 'true').lower() == 'true'
             if auto and lyrics_service is not None:
-                res = lyrics_service.start(lyrics_client, search_engine)  ### TEMP: pass embedding manager object (as optional)
+                res = lyrics_service.start(lyrics_client, search_engine)
                 summary['lyrics_job_started'] = (res or {}).get('status') == 'started'
                 summary['lyrics_enqueued'] = (res or {}).get('enqueued', 0)
         except Exception as e:
