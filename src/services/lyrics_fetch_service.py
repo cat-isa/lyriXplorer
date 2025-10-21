@@ -7,9 +7,7 @@ from typing import Optional, Dict, Any, List
 from datetime import datetime
 import logging
 
-#from ..api.lyrics_client import LyricsClient
 from api.lyrics_client import LyricsClient
-#from ..storage.csv_tables import SongsTable, LyricsTable, LyricsStatusTable
 from storage.csv_tables import SongsTable, LyricsTable, LyricsStatusTable
 from search.hybrid_search import HybridSearchEngine
 
@@ -68,11 +66,14 @@ class LyricsFetchService:
         # Batch buffer shared among workers guarded by lock
         self._batch_buffer: List[Dict[str, Any]] = []
         self._refilling = False
+        # Sentinel object to wake workers for fast shutdown
+        self._sentinel = object()
 
     def _enqueue_missing(self):
         # Build list of songs missing lyrics
         rows = self.songs._read_all()
         enqueued = 0
+
         for r in rows:
             sid = r.get('song_id')
             if not sid or self.lyrics.has(sid):
@@ -95,6 +96,7 @@ class LyricsFetchService:
                 break
         self._enqueued = enqueued
 
+
     def start(self, lyrics_client: LyricsClient, search_engine: Optional[HybridSearchEngine] = None) -> Dict[str, Any]: 
         with self._lock:
             if self._running:
@@ -116,14 +118,15 @@ class LyricsFetchService:
                     break
             # Enqueue missing
             self._enqueue_missing()
-            self._running = True
+            # If nothing to do, don't leave the service running
+            self._running = self._enqueued > 0
             self._executor = ThreadPoolExecutor(max_workers=self.max_concurrency)
             self._workers = []
             for _ in range(self.max_concurrency):
                 t = threading.Thread(target=self._worker_loop, args=(lyrics_client,search_engine,), daemon=True)
                 t.start()
                 self._workers.append(t)
-        return {'status': 'started', 'enqueued': self._enqueued}
+        return {'status': 'started' if self._running else 'idle', 'enqueued': self._enqueued}
 
     def pause(self):
         with self._lock:
@@ -145,9 +148,11 @@ class LyricsFetchService:
                 return {'status': 'not_running'}
             self._cancelled = True
             self._paused = False
-        # Wait for workers to exit
+        # Wake workers and exit quickly
+        for _ in range(len(self._workers)):
+            self._queue.put(self._sentinel)
         for t in list(self._workers):
-            t.join(timeout=0.1)
+            t.join(timeout=2.0)
         with self._lock:
             self._running = False
             self._workers = []
@@ -197,27 +202,38 @@ class LyricsFetchService:
                 # Attempt to refill once if possible (only one worker performs refill)
                 should_refill = False
                 with self._lock:
-                    if self._running and not self._cancelled and not self._refilling:
+                    # Check if we should stop or refill
+                    if not self._running or self._cancelled:
+                        break
+                    if not self._refilling:
                         self._refilling = True
                         should_refill = True
+                    # else: another worker is refilling, just wait
                 if should_refill:
                     try:
-                        prev_enq = self._enqueued
-                        self._enqueue_missing()
+                        self._enqueue_missing() 
                         # If nothing new was enqueued, stop service
-                        if self._queue.empty() and self._enqueued == prev_enq:
+                        if self._enqueued == 0:
                             with self._lock:
                                 self._running = False
-                                self._refilling = False
                                 print(f"{self._succeeded} new lyrics added.") ###TEMP: print in log instead
-                                break
+
+                                # Push sentinels to wake other workers and exit fast
+                                for _ in range(len(self._workers)):
+                                    self._queue.put(self._sentinel)
+                            break
                     finally:
                         with self._lock:
                             self._refilling = False
                 else:
                     # brief backoff and retry
-                    time.sleep(0.2)
+                    time.sleep(0.5) 
                 continue
+
+            # Sentinel: exit immediately
+            if item is self._sentinel:
+                self._queue.task_done()
+                break
 
             song_id = item['song_id']
             title = item['title']
@@ -290,6 +306,7 @@ class LyricsFetchService:
         self._flush_batch(force=True, search_engine=search_engine)
 
     def _flush_batch(self, force: bool, already_locked: bool = False, search_engine: Optional[HybridSearchEngine] = None): 
+        
         if already_locked:
             # Caller holds self._lock
             if not self._batch_buffer:

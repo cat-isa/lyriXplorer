@@ -4,7 +4,7 @@ import csv
 import pandas as pd
 import threading
 import time
-from typing import Dict, Any, List, Optional, Iterable, Tuple
+from typing import Dict, Any, List, Optional, Iterable
 
 class _BaseCSV:
     FIELDNAMES: List[str] = []
@@ -64,21 +64,36 @@ class _BaseCSV:
 class PlaylistsTable(_BaseCSV):
     FIELDNAMES = ['playlist_id', 'name', 'snapshot_id', 'tracks_total', 'original_id', 'source']
 
+    def __init__(self, path: str):
+        super().__init__(path)
+        self._index: Optional[Dict[str, Dict[str, Any]]] = None
+
+    def _build_index(self):
+        """Lazy index building - builds on first access."""
+        if self._index is None:
+            rows = self._read_all()
+            self._index = {r['playlist_id']: r for r in rows if r.get('playlist_id')}
+
+    def _invalidate_index(self):
+        """Invalidate index after writes."""
+        self._index = None
+
     def upsert(self, playlist: Dict[str, Any]) -> None:
         rows = self._read_all()
+        pid = playlist.get('playlist_id')
         for r in rows:
-            if r['playlist_id'] == playlist.get('playlist_id'):
+            if r['playlist_id'] == pid:
                 r.update({k: '' if v is None else v for k, v in playlist.items() if k in self.FIELDNAMES})
                 self._write_all(rows)
+                self._invalidate_index()
                 return
         rows.append({k: '' if v is None else v for k, v in playlist.items()})
         self._write_all(rows)
+        self._invalidate_index()
 
     def get(self, playlist_id: str) -> Optional[Dict[str, Any]]:
-        for r in self._read_all():
-            if r['playlist_id'] == playlist_id:
-                return r
-        return None
+        self._build_index()
+        return self._index.get(playlist_id)
 
     def all(self) -> List[Dict[str, Any]]:
         return self._read_all()
@@ -88,6 +103,20 @@ class SongsTable(_BaseCSV):
     FIELDNAMES = ['song_id', 'original_id', 'isrc_id', 'title', 'artist', 'album', 'duration_ms', 
                     'popularity', 'release_date', 'source']
 
+    def __init__(self, path: str):
+        super().__init__(path)
+        self._index: Optional[Dict[str, Dict[str, Any]]] = None
+
+    def _build_index(self):
+        """Lazy index building - builds on first access."""
+        if self._index is None:
+            rows = self._read_all()
+            self._index = {(r.get('song_id') or '').strip(): r for r in rows if (r.get('song_id') or '').strip()}
+
+    def _invalidate_index(self):
+        """Invalidate index after writes."""
+        self._index = None
+
     def upsert(self, song: Dict[str, Any]) -> None:
         rows = self._read_all()
         sid = (song.get('song_id') or '').strip()
@@ -95,15 +124,15 @@ class SongsTable(_BaseCSV):
             if (r.get('song_id') or '').strip() == sid:
                 r.update({k: '' if v is None else v for k, v in song.items() if k in self.FIELDNAMES})
                 self._write_all(rows)
+                self._invalidate_index()
                 return
         rows.append({k: '' if v is None else v for k, v in song.items()})
         self._write_all(rows)
+        self._invalidate_index()
 
     def get(self, song_id: str) -> Optional[Dict[str, Any]]:
-        for r in self._read_all():
-            if r.get('song_id') == song_id:
-                return r
-        return None
+        self._build_index()
+        return self._index.get((song_id or '').strip())
 
     def delete_ids(self, ids: Iterable[str]) -> int:
         idset = set(ids)
@@ -112,11 +141,30 @@ class SongsTable(_BaseCSV):
         removed = len(rows) - len(new_rows)
         if removed:
             self._write_all(new_rows)
+            self._invalidate_index()
         return removed
 
 
 class PlaylistTracksTable(_BaseCSV):
     FIELDNAMES = ['playlist_id', 'song_id', 'added_at']
+
+    def __init__(self, path: str):
+        super().__init__(path)
+        self._index: Optional[Dict[tuple, Dict[str, Any]]] = None
+
+    def _build_index(self):
+        """Lazy index building - builds on first access with composite key."""
+        if self._index is None:
+            rows = self._read_all()
+            self._index = {
+                (r['playlist_id'], r['song_id']): r 
+                for r in rows 
+                if r.get('playlist_id') and r.get('song_id')
+            }
+
+    def _invalidate_index(self):
+        """Invalidate index after writes."""
+        self._index = None
 
     def upsert(self, playlist_id: str, song_id: str, added_at: Optional[str]) -> None:
         rows = self._read_all()
@@ -126,9 +174,11 @@ class PlaylistTracksTable(_BaseCSV):
                 if added_at:
                     r['added_at'] = added_at
                 self._write_all(rows)
+                self._invalidate_index()
                 return
         rows.append({'playlist_id': playlist_id, 'song_id': song_id, 'added_at': added_at or ''})
         self._write_all(rows)
+        self._invalidate_index()
 
     def remove_missing(self, playlist_id: str, present_song_ids: Iterable[str]) -> int:
         present = set(present_song_ids)
@@ -142,9 +192,11 @@ class PlaylistTracksTable(_BaseCSV):
             new_rows.append(r)
         if removed:
             self._write_all(new_rows)
+            self._invalidate_index()
         return removed
 
     def list_playlist(self, playlist_id: str) -> List[Dict[str, Any]]:
+        # For filtering by single field, still use scan (index is for composite key)
         return [r for r in self._read_all() if r['playlist_id'] == playlist_id]
 
     def all_song_ids(self) -> set:
@@ -153,6 +205,20 @@ class PlaylistTracksTable(_BaseCSV):
 
 class LyricsTable(_BaseCSV):
     FIELDNAMES = ['song_id', 'lyrics_text', 'language', 'source', 'last_updated']
+
+    def __init__(self, path: str):
+        super().__init__(path)
+        self._index: Optional[Dict[str, Dict[str, Any]]] = None
+
+    def _build_index(self):
+        """Lazy index building - builds on first access."""
+        if self._index is None:
+            rows = self._read_all()
+            self._index = {r['song_id']: r for r in rows if r.get('song_id')}
+
+    def _invalidate_index(self):
+        """Invalidate index after writes."""
+        self._index = None
 
     def upsert(self, song_id: str, lyrics_text: str, language: Optional[str], source: str, last_updated: Optional[str] = None) -> None:
         rows = self._read_all()
@@ -163,6 +229,7 @@ class LyricsTable(_BaseCSV):
                 r['source'] = source
                 r['last_updated'] = last_updated or datetime.utcnow().isoformat()
                 self._write_all(rows)
+                self._invalidate_index()
                 return
         rows.append({
             'song_id': song_id,
@@ -172,17 +239,26 @@ class LyricsTable(_BaseCSV):
             'last_updated': last_updated or datetime.utcnow().isoformat(),
         })
         self._write_all(rows)
+        self._invalidate_index()
 
     def has(self, song_id: str) -> bool:
-        for r in self._read_all():
-            if r['song_id'] == song_id and (r.get('lyrics_text') or '').strip():
-                return True
-        return False
+        """Check if lyrics exist for song_id using index - O(1)."""
+        self._build_index()
+        idx = self._index  # Local reference for thread safety
+        if idx is None:
+            return False
+        row = idx.get(song_id)
+        return bool(row and (row.get('lyrics_text') or '').strip())
 
     def get_lyrics(self, song_id: str) -> str:
-        for r in self._read_all():
-            if r['song_id'] == song_id and (r.get('lyrics_text') or '').strip():
-                return r
+        """Get lyrics for song_id using index - O(1)."""
+        self._build_index()
+        idx = self._index
+        if idx is None:
+            return 'lyrics unavailable'
+        row = idx.get(song_id)
+        if row and (row.get('lyrics_text') or '').strip():
+            return row
         return 'lyrics unavailable'
 
     def delete_ids(self, ids: Iterable[str]) -> int:
@@ -192,6 +268,7 @@ class LyricsTable(_BaseCSV):
         removed = len(rows) - len(new_rows)
         if removed:
             self._write_all(new_rows)
+            self._invalidate_index()
         return removed
 
 
@@ -208,6 +285,20 @@ class LyricsStatusTable(_BaseCSV):
 
     FIELDNAMES = ['song_id', 'status', 'attempts', 'last_attempt', 'last_error']
 
+    def __init__(self, path: str):
+        super().__init__(path)
+        self._index: Optional[Dict[str, Dict[str, Any]]] = None
+
+    def _build_index(self):
+        """Lazy index building - builds on first access."""
+        if self._index is None:
+            rows = self._read_all()
+            self._index = {r['song_id']: r for r in rows if r.get('song_id')}
+
+    def _invalidate_index(self):
+        """Invalidate index after writes."""
+        self._index = None
+
     def upsert(self, song_id: str, status: str, attempts: int, last_attempt: Optional[str], last_error: str = '') -> None:
         rows = self._read_all()
         for r in rows:
@@ -217,6 +308,7 @@ class LyricsStatusTable(_BaseCSV):
                 r['last_attempt'] = last_attempt or ''
                 r['last_error'] = last_error
                 self._write_all(rows)
+                self._invalidate_index()
                 return
         rows.append({
             'song_id': song_id,
@@ -226,15 +318,19 @@ class LyricsStatusTable(_BaseCSV):
             'last_error': last_error,
         })
         self._write_all(rows)
+        self._invalidate_index()
 
     def get(self, song_id: str) -> Optional[Dict[str, Any]]:
-        for r in self._read_all():
-            if r.get('song_id') == song_id:
-                return r
-        return None
+        """Get status row for song_id using index - O(1)."""
+        self._build_index()
+        idx = self._index
+        if idx is None:
+            return None
+        return idx.get(song_id)
 
     def should_skip(self, song_id: str, cooldown_hours: int, max_attempts: int) -> bool:
-        row = self.get(song_id)
+        """Check if song should be skipped using indexed lookup - O(1)."""
+        row = self.get(song_id)  # Now uses index
         if not row:
             return False
         try:
