@@ -27,6 +27,7 @@ class SyncService:
         summary = {
             'playlists_synced': 0,
             'playlists_skipped': 0,
+            'playlists_removed': 0,
             'songs_upserted': 0,
             'tracks_linked': 0,
             'links_removed': 0,
@@ -47,11 +48,20 @@ class SyncService:
             except Exception:
                 prev_sync_dt = None
 
+        # Get existing playlist ids in palylists.csv 
+        existing_playlist_rows = self.playlists._read_all()
+        existing_playlist_ids = {r.get('playlist_id') for r in existing_playlist_rows if r.get('playlist_id')}      
+
+        present_playlist_ids: List[str] = []  
+
         for pl in sp_playlists:
             playlist_id = pl['id']
             name = pl['name']
             snapshot_id = pl['snapshot_id']
             tracks_total = pl['tracks_count']
+
+            # keep track of all playlist ids currently available
+            present_playlist_ids.append(playlist_id)
 
             existing = self.playlists.get(playlist_id)
             # Skip entire playlist if snapshot_id unchanged
@@ -124,7 +134,13 @@ class SyncService:
             removed = self.playlist_tracks.remove_missing(playlist_id, present_ids)
             summary['links_removed'] += removed
 
-        # After syncing all playlists, remove songs (and lyrics) no longer referenced
+        # After syncing all playlists, remove playlists and songs (and lyrics) no longer referenced
+        playlists_to_delete = existing_playlist_ids - set(present_playlist_ids)
+        if playlists_to_delete:
+            summary['playlists_deleted'] = self.playlists.delete_ids(playlists_to_delete)
+            removed = self.playlist_tracks.delete_all_playlist_links(playlists_to_delete)
+            summary['links_removed'] += removed
+
         referenced = self.playlist_tracks.all_song_ids()
         # Build set of existing song ids
         existing_song_rows = self.songs._read_all()

@@ -98,6 +98,16 @@ class PlaylistsTable(_BaseCSV):
     def all(self) -> List[Dict[str, Any]]:
         return self._read_all()
 
+    def delete_ids(self, ids: Iterable[str]) -> int:
+        idset = set(ids)
+        rows = self._read_all()
+        new_rows = [r for r in rows if (r.get('playlist_id') or '') not in idset]
+        removed = len(rows) - len(new_rows)
+        if removed:
+            self._write_all(new_rows)
+            self._invalidate_index()
+        return removed
+
 
 class SongsTable(_BaseCSV):
     FIELDNAMES = ['song_id', 'original_id', 'isrc_id', 'title', 'artist', 'album', 'duration_ms', 
@@ -201,6 +211,16 @@ class PlaylistTracksTable(_BaseCSV):
 
     def all_song_ids(self) -> set:
         return {r['song_id'] for r in self._read_all() if r.get('song_id')}
+
+    def delete_all_playlist_links(self, ids: Iterable[str]) -> int:
+        idset = set(ids)
+        rows = self._read_all()
+        new_rows = [r for r in rows if (r.get('playlist_id') or '') not in idset]
+        removed = len(rows) - len(new_rows)
+        if removed:
+            self._write_all(new_rows)
+            self._invalidate_index()
+        return removed
 
 
 class LyricsTable(_BaseCSV):
