@@ -9,7 +9,7 @@ import uvicorn
 from models import SearchQuery, SearchResponse, PlaylistImport
 from api.spotify_client import SpotifyClient
 from api.lyrics_client import LyricsClient
-from embeddings.embedding_manager import EmbeddingManager
+from embeddings.embedding_factory import create_embedding_manager
 from search.hybrid_search import HybridSearchEngine
 from services.sync_service import SyncService
 from services.lyrics_fetch_service import LyricsFetchService
@@ -82,7 +82,7 @@ def get_embedding_manager():
     global embedding_manager
     if embedding_manager is None:
         persist_dir = os.getenv("CHROMA_PERSIST_DIRECTORY", "./stored_embeddings")
-        embedding_manager = EmbeddingManager(persist_dir)
+        embedding_manager = create_embedding_manager(persist_dir)
     return embedding_manager
 
 def get_search_engine():
