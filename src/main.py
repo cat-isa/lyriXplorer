@@ -81,7 +81,7 @@ def get_lyrics_client():
 def get_embedding_manager():
     global embedding_manager
     if embedding_manager is None:
-        persist_dir = os.getenv("CHROMA_PERSIST_DIRECTORY", "./embeddings")
+        persist_dir = os.getenv("CHROMA_PERSIST_DIRECTORY", "./stored_embeddings")
         embedding_manager = EmbeddingManager(persist_dir)
     return embedding_manager
 

@@ -28,7 +28,7 @@ MANIFEST
 
 # local data
 data/
-embeddings/
+stored_embeddings/
 keyword_index/
 old/
 

@@ -19,7 +19,7 @@ CORS_ALLOW_CREDENTIALS=false
 
 
 # Vector Database Configuration
-CHROMA_PERSIST_DIRECTORY=./embeddings
+CHROMA_PERSIST_DIRECTORY=./stored_embeddings
 EMBEDDING_MODEL=paraphrase-multilingual-MiniLM-L12-v2
 EMBEDDING_BATCH_SIZE=16 
 

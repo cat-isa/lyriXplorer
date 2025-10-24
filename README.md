@@ -16,7 +16,7 @@ A personal app to look for songs in your playlists whose lyrics match emotional 
 lyriXplorer/
 ├── data/                   # CSV files with song metadata
 ├── lyrics/                 # Cached lyrics files
-├── embeddings/             # Vector embeddings database
+├── stored_embeddings/             # Vector embeddings database
 ├── src/
 │   ├── api/               # Spotify and lyrics APIs
 │   ├── search/            # Search algorithms
