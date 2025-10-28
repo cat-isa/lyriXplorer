@@ -735,8 +735,3 @@ class HybridSearchEngine:
         except Exception as e:
             logger.error(f"Error extracting matched terms: {e}")
             return []
-
-### TEMP: one could force a check everytime the search engine is called (using a decorator?) whether new lyrics have been
-###added or some lyrics have been deleted. In that case, the engine is re-initialized (indexes are recomputed)
-
-

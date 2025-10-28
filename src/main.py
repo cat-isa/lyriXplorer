@@ -6,7 +6,7 @@ from fastapi.staticfiles import StaticFiles
 from dotenv import load_dotenv
 import uvicorn
 
-from models import SearchQuery, SearchResponse, PlaylistImport
+from models import SearchQuery, SearchResponse
 from api.spotify_client import SpotifyClient
 from api.lyrics_client import LyricsClient
 from embeddings.embedding_manager import EmbeddingManager
@@ -180,56 +180,6 @@ async def get_playlists(spotify: SpotifyClient = Depends(get_spotify_client)):
         logger.error(f"Error fetching playlists: {e}")
         raise HTTPException(status_code=500, detail="Failed to fetch playlists")
 
-@app.post("/import-playlist")
-async def import_playlist(
-    import_request: PlaylistImport,
-    spotify: SpotifyClient = Depends(get_spotify_client),
-    lyrics: LyricsClient = Depends(get_lyrics_client),
-    embedding_mgr: EmbeddingManager = Depends(get_embedding_manager)
-):
-    """Import a Spotify playlist and fetch lyrics"""
-    try:
-        # Get playlist tracks
-        tracks = spotify.get_playlist_tracks(import_request.playlist_id)
-        
-        if not tracks:
-            raise HTTPException(status_code=404, detail="No tracks found in playlist")
-        
-        # Fetch lyrics if requested
-        lyrics_data = {}
-        if import_request.fetch_lyrics:
-            logger.info(f"Fetching lyrics for {len(tracks)} tracks...")
-            lyrics_data = lyrics.batch_get_lyrics(tracks)
-        
-        # Create songs with lyrics
-        from models import SongWithLyrics
-        songs_with_lyrics = []
-        
-        for track in tracks:
-            song_with_lyrics = SongWithLyrics(
-                song=track,
-                lyrics=lyrics_data.get(track.id)
-            )
-            songs_with_lyrics.append(song_with_lyrics)
-        
-        # Generate embeddings if requested
-        embeddings_added = 0
-        if import_request.generate_embeddings:
-            logger.info("Generating embeddings...")
-            embeddings_added = embedding_mgr.batch_add_songs(songs_with_lyrics)
-        
-        return {
-            "message": "Playlist imported successfully",
-            "tracks_found": len(tracks),
-            "lyrics_fetched": len(lyrics_data),
-            "embeddings_generated": embeddings_added,
-            "playlist_id": import_request.playlist_id
-        }
-        
-    except Exception as e:
-        logger.error(f"Error importing playlist: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to import playlist: {str(e)}")
-
 @app.post("/sync")
 async def sync_library(
     svc: SyncService = Depends(get_sync_service),
@@ -297,22 +247,6 @@ async def get_stats(embedding_mgr: EmbeddingManager = Depends(get_embedding_mana
     except Exception as e:
         logger.error(f"Error getting stats: {e}")
         raise HTTPException(status_code=500, detail="Failed to get statistics")
-
-@app.delete("/songs/{song_id}")
-async def delete_song(
-    song_id: str,
-    embedding_mgr: EmbeddingManager = Depends(get_embedding_manager)
-):
-    """Delete a song from the database"""
-    try:
-        success = embedding_mgr.delete_song(song_id)
-        if success:
-            return {"message": f"Song {song_id} deleted successfully"}
-        else:
-            raise HTTPException(status_code=404, detail="Song not found")
-    except Exception as e:
-        logger.error(f"Error deleting song: {e}")
-        raise HTTPException(status_code=500, detail="Failed to delete song")
 
 if __name__ == "__main__":
     host = os.getenv("HOST", "0.0.0.0")

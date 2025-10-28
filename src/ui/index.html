@@ -43,7 +43,7 @@
 
         .main-content {
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: 1fr;
             gap: 30px;
             margin-bottom: 40px;
         }
@@ -302,33 +302,6 @@
                     <button type="submit" class="btn">Search</button>
                 </form>
             </div>
-
-            <div class="card">
-                <h2>📥 Import Playlist</h2>
-                <form id="import-form">
-                    <div class="form-group">
-                        <label for="playlist-id">Spotify Playlist ID</label>
-                        <input type="text" id="playlist-id" placeholder="Enter playlist ID from Spotify URL">
-                    </div>
-                    <div class="form-group">
-                        <label for="playlist-name">Playlist Name (Optional)</label>
-                        <input type="text" id="playlist-name" placeholder="Enter a name for this playlist">
-                    </div>
-                    <div class="form-group">
-                        <label>
-                            <input type="checkbox" id="fetch-lyrics" checked>
-                            Fetch lyrics automatically
-                        </label>
-                    </div>
-                    <div class="form-group">
-                        <label>
-                            <input type="checkbox" id="generate-embeddings" checked>
-                            Generate embeddings for search
-                        </label>
-                    </div>
-                    <button type="submit" class="btn">Import Playlist</button>
-                </form>
-            </div>
         </div>
 
         <div id="loading" class="loading" style="display: none;">
@@ -404,50 +377,6 @@
             }
         });
 
-        // Import form handler
-        document.getElementById('import-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
-            const playlistId = document.getElementById('playlist-id').value.trim();
-            if (!playlistId) {
-                showError('Please enter a playlist ID');
-                return;
-            }
-
-            const importData = {
-                playlist_id: playlistId,
-                playlist_name: document.getElementById('playlist-name').value.trim() || null,
-                fetch_lyrics: document.getElementById('fetch-lyrics').checked,
-                generate_embeddings: document.getElementById('generate-embeddings').checked
-            };
-
-            showLoading();
-            clearMessages();
-
-            try {
-                const response = await fetch(`${API_BASE}/import-playlist`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(importData)
-                });
-
-                const result = await response.json();
-                hideLoading();
-                
-                if (response.ok) {
-                    showSuccess(`Playlist imported successfully! Found ${result.tracks_found} tracks, fetched ${result.lyrics_fetched} lyrics, and generated ${result.embeddings_generated} embeddings.`);
-                    loadStats(); // Refresh stats
-                } else {
-                    showError(result.detail || 'Import failed');
-                }
-            } catch (error) {
-                hideLoading();
-                showError('Import failed. Please try again.');
-                console.error('Import error:', error);
-            }
-        });
 
         function displaySearchResults(results) {
             const container = document.getElementById('results-container');
@@ -465,7 +394,7 @@
                         </div>
                         <div class="score">${(result.relevance_score * 100).toFixed(1)}%</div>
                     </div>
-                    <div class="lyrics-excerpt">${result.lyrics_excerpt}</div>
+                    <div class="lyrics-excerpt">${result.lyrics_excerpt || (result.lyrics_text?.substring(0, 150) + '...')}</div>
                     ${result.matched_terms && result.matched_terms.length > 0 ? 
                         `<div class="matched-terms">Matched terms: ${result.matched_terms.map(term => `<span>${term}</span>`).join('')}</div>` : 
                         ''}

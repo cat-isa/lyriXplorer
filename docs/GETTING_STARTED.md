@@ -4,8 +4,7 @@
 
 - Python 3.8 or higher
 - Spotify account (for playlist access)
-- Optional: Genius API token (for better lyrics fetching)
-- Optional: Musixmatch API key (alternative lyrics source)
+
 
 ## Installation
 
@@ -39,21 +38,10 @@
    - Copy the Client ID and Client Secret
    - Add `http://localhost:3000/callback` to Redirect URIs
 
-3. **Optional: Set up Genius API (recommended):**
-   - Go to [Genius API](https://genius.com/api-clients)
-   - Create an API client
-   - Copy the access token
-
-4. **Optional: Set up Musixmatch API:**
-   - Go to [Musixmatch Developer](https://developer.musixmatch.com/)
-   - Sign up and get an API key
-
-5. **Edit your `.env` file:**
+3. **Edit your `.env` file:**
    ```env
    SPOTIFY_CLIENT_ID=your_spotify_client_id
    SPOTIFY_CLIENT_SECRET=your_spotify_client_secret
-   GENIUS_ACCESS_TOKEN=your_genius_token
-   MUSIXMATCH_API_KEY=your_musixmatch_key
    ```
 
 ## Running the Application
@@ -75,10 +63,10 @@
 
 ## First Steps
 
-1. **Import a Spotify playlist:**
-   - Get a playlist ID from Spotify (the part after `/playlist/` in the URL)
-   - Use the import form in the web interface
-   - The app will fetch all tracks and lyrics
+1. **Import your Spotify playlists:**
+   - On startup, the app will retrieve your playlist content (songs and lyrics, if available)
+   - Warning: It may take time to retrieve all your songs...
+   - At each startup, the app will try to update your local DB with new songs and lyrics, if your playlists have changed
 
 2. **Search for songs:**
    - Try searching for specific lyrics: "I want to hold your hand"
@@ -90,23 +78,10 @@
 - `GET /` - Welcome message
 - `GET /health` - Health check and stats
 - `GET /playlists` - Get user's Spotify playlists
-- `POST /import-playlist` - Import a playlist
 - `POST /search` - Search for songs
 - `GET /stats` - Get database statistics
-- `DELETE /songs/{song_id}` - Delete a song
 
 ## Example Usage
-
-### Import a playlist via API:
-```bash
-curl -X POST "http://localhost:8000/import-playlist" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "playlist_id": "37i9dQZF1DXcBWIGoYBM5M",
-    "fetch_lyrics": true,
-    "generate_embeddings": true
-  }'
-```
 
 ### Search for songs:
 ```bash
@@ -129,12 +104,11 @@ curl -X POST "http://localhost:8000/search" \
    - Try clearing browser cookies
 
 2. **No lyrics found:**
-   - Check if Genius/Musixmatch APIs are configured
    - Some songs may not have lyrics available
    - Try different search terms
 
 3. **Slow performance:**
-   - First run will be slower due to model downloads
+   - First run will be slower due to model downloads and data fetching
    - Large playlists take time to process
    - Consider reducing max results
 
