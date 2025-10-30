@@ -53,6 +53,7 @@ class SearchQuery(BaseModel):
 class SearchResult(BaseModel):
     """Search result model"""
     song: Song
+    lyrics_text: Optional[str] = None
     lyrics_excerpt: str
     relevance_score: float
     match_type: str  # "keyword", "semantic", "hybrid"

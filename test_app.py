@@ -77,8 +77,8 @@ def test_embedding_manager():
         
         # Test with temporary directory
         import tempfile
-        with tempfile.TemporaryDirectory() as temp_dir:
-            embedding_mgr = EmbeddingManager(temp_dir)
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as temp_dir:
+            embedding_mgr = EmbeddingManager(temp_dir) 
             stats = embedding_mgr.get_database_stats()
             assert isinstance(stats, dict)
             
@@ -134,7 +134,7 @@ def test_search_engine():
         
         # Test with temporary directory
         import tempfile
-        with tempfile.TemporaryDirectory() as temp_dir:
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as temp_dir:
             embedding_mgr = EmbeddingManager(temp_dir)
             search_engine = HybridSearchEngine(embedding_mgr)
             

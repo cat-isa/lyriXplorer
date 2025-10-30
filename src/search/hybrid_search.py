@@ -107,6 +107,7 @@ class HybridSearchEngine:
 
         # init keyword indexes
         all_lyrics = self.lyrics._read_all()
+
         if len(all_lyrics) > 0:
             self.lyrics_texts, self.song_ids = map(list, zip(*[(el.get('lyrics_text'), el.get('song_id')) for el in all_lyrics if el.get('lyrics_text')]))
 
@@ -219,7 +220,7 @@ class HybridSearchEngine:
             all_lyrics = self.lyrics._read_all()
             self.lyrics_texts, self.song_ids = map(list, zip(*[(el.get('lyrics_text'), el.get('song_id')) 
                                                     for el in all_lyrics if el.get('lyrics_text')]))
-                        
+          
             if self.lyrics_texts:
                 # build additional indexes
                 self.build_phrase_and_word_index() 
@@ -362,70 +363,7 @@ class HybridSearchEngine:
             logger.error(f"Error in fuzzy search: {e}")
             return []
     
-    def keyword_search_old(self, query: str, algo: str='tf-idf', n_results: int = 10) -> List[Dict[str, Any]]:
-        """Enhanced keyword-based search with optional exact phrase detection"""
-        try:
-            results = []
-            
-            # Check for exact phrase query (quoted text)
-            phrase_match = re.search(r'"([^"]+)"', query) 
-            if phrase_match and self.enable_phrase_matching:
-                exact_phrase = phrase_match.group(1)
-                exact_results = self.exact_phrase_search(exact_phrase, n_results)
-      
-                # Remove quotes from query for regular search
-                regular_query = query.replace(f'"{exact_phrase}"', exact_phrase)
-                
-                # Combine with regular TF-IDF search
-                if algo == 'tf-idf' and self.tfidf_matrix is not None and regular_query.strip():
-                    tfidf_results = self._tfidf_search(regular_query, n_results)
-                    
-                    # Merge results, prioritizing exact matches
-                    seen_ids = {r['song_id'] for r in exact_results}
-                    for r in tfidf_results:
-                        if r['song_id'] not in seen_ids:
-                            results.append(r)
-                    
-                    # Put exact matches first
-                    results = exact_results + results[:n_results - len(exact_results)]
-                elif algo == 'bm25' and hasattr(self.BM25_retriever, 'vocab_dict') and regular_query.strip():
-                    bm25_results = self._bm25_search(regular_query, n_results)
-                    
-                    # Merge results, prioritizing exact matches
-                    seen_ids = {r['song_id'] for r in exact_results}
-                    for r in bm25_results:
-                        if r['song_id'] not in seen_ids:
-                            results.append(r)
-                    
-                    # Put exact matches first
-                    results = exact_results + results[:n_results - len(exact_results)]
-                else:
-                    results = exact_results
-            else:
-                if algo == 'tf-idf':
-                    # Regular TF-IDF search
-                    results = self._tfidf_search(query, n_results)
-                elif algo == 'bm25':
-                    results = self._bm25_search(query, n_results)
-                else:
-                    logger.warning(f"Unknown algo option: {algo}, cannot perform keyword search")
-
-            
-            # If few results and fuzzy matching enabled, supplement with fuzzy search
-            if len(results) < n_results // 2 and self.enable_fuzzy_matching:
-                fuzzy_results = self.fuzzy_search(query, n_results - len(results))
-                seen_ids = {r['song_id'] for r in results}
-                for r in fuzzy_results:
-                    if r['song_id'] not in seen_ids:
-                        results.append(r)
-            
-            return results[:n_results]
-            
-        except Exception as e:
-            logger.error(f"Error in keyword search: {e}")
-            return []
-    
-    def keyword_search(self, query: str, algo: str='tf-idf', n_results: int = 10) -> List[Dict[str, Any]]:
+    def keyword_search(self, query: str, algo: str='bm25', n_results: int = 10) -> List[Dict[str, Any]]:
         """Enhanced keyword-based search with optional exact phrase detection"""
         try:
             results = []
@@ -580,8 +518,8 @@ class HybridSearchEngine:
         """Enhanced hybrid search combining all search methods"""
         try:
             # Perform all searches
-            keyword_results = self.keyword_search(query, keyword_algo, n_results * 2)
-            semantic_results = self.semantic_search(query, n_results * 2, filters)
+            keyword_results = self.keyword_search(query, keyword_algo, n_results)
+            semantic_results = self.semantic_search(query, n_results, filters)
             
             # Create lookup dictionaries with all scores
             all_scores = defaultdict(lambda: {
@@ -735,8 +673,3 @@ class HybridSearchEngine:
         except Exception as e:
             logger.error(f"Error extracting matched terms: {e}")
             return []
-
-### TEMP: one could force a check everytime the search engine is called (using a decorator?) whether new lyrics have been
-###added or some lyrics have been deleted. In that case, the engine is re-initialized (indexes are recomputed)
-
-

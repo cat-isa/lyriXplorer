@@ -14,22 +14,31 @@ A personal app to look for songs in your playlists whose lyrics match emotional 
 
 ```
 lyriXplorer/
+├── config/                 # Configuration files
 ├── data/                   # CSV files with song metadata
-├── lyrics/                 # Cached lyrics files
-├── stored_embeddings/             # Vector embeddings database
+├── docs/                   # GETTING_STARTED.md
+├── keyword_index/          # precomputed indexes for lexical search
 ├── src/
-│   ├── api/               # Spotify and lyrics APIs
-│   ├── search/            # Search algorithms
-│   ├── embeddings/        # Vector embedding generation
-│   └── ui/                # Web interface
-├── config/                # Configuration files
-└── requirements.txt       # Python dependencies
+│   ├── api/                # Spotify and lyrics APIs
+│   ├── embeddings/         # Vector embedding generation
+│   ├── search/             # Search algorithms
+│   ├── services/           # Lyrics fetching service and DB sync
+│   ├── storage/            # DB implementation (CSV based)
+│   ├── ui/                 # Web interface
+│   ├── main.py                 # App
+│   └── models.py               # Data models
+├── stored_embeddings/      # Vector embeddings database
+├── explore_data.ipynb      # Draft notebook to experiment with the code base
+├── README.md               # This file
+├── requirements.txt        # Python dependencies
+├── setup.py                # Setup script
+└── test_app.py             # App setup tests
 ```
 
 ## Tech Stack
 
 - **Backend**: Python (FastAPI)
-- **Frontend**: React/Next.js
+- **Frontend**: HTML+JS
 - **Vector DB**: ChromaDB (local)
 - **Embeddings**: sentence-transformers (multilingual)
 - **APIs**: Spotify Web API, LRCLIB API
@@ -38,27 +47,34 @@ lyriXplorer/
 ## Getting Started
 
 1. Install dependencies: `pip install -r requirements.txt`
-2. Set up API keys in `config/.env`
-3. Import your Spotify playlists to CSV
-4. Run the app: `python src/main.py`
+2. Set up API keys in `.env`
+3. Run the app: `python src/main.py`
 
 ## Development Phases
 
 ### Phase 1: Core Infrastructure
 - [x] Project setup
-- [ ] Spotify playlist import
-- [ ] Lyrics fetching
-- [ ] Basic search interface
+- [x] Spotify playlist import
+- [x] Lyrics fetching
+- [x] Basic search interface
 
 ### Phase 2: Smart Search
-- [ ] Vector embeddings generation
-- [ ] Semantic search implementation
-- [ ] Hybrid search algorithm
+- [x] Vector embeddings generation
+- [x] Semantic search implementation
+- [x] Hybrid search algorithm
 
-### Phase 3: Enhanced Features
-- [ ] LLM-powered search coordination
+### Phase 3: Enhanced Features & Improvements
+- [ ] Verse-level embeddings generation
+- [ ] Add a reranker?
+- [ ] ColBERT embeddings generation
+- [ ] LLM-powered query expansion
+- [ ] Allow manual insertion of missing lyrics
+- [ ] Analytics on song distribution, themes, ...
+- [ ] Playlist generation from search results
+- [ ] Add more tests, improve docstrings and logging
+- [ ] Automatic language detection (to add as metadata for lyrics)
+- [ ] At import time, let user select playlists to import/exclude
 - [ ] Advanced filtering
-- [ ] Search history and favorites
 
 ## License
 
